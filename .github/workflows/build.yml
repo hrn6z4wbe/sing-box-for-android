@@ -38,7 +38,7 @@ jobs:
           gomobile init
           git clone --depth=1 https://github.com/SagerNet/sing-box.git sing-box-src
           cd sing-box-src
-          go run ./cmd/internal/build_libbox -target android
+          go run ./cmd/internal/build_libbox -target android -tags "with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_tailscale"
           mkdir -p ../app/libs
           cp libbox.aar ../app/libs/
           cp libbox.aar ../app/libs/libbox-legacy.aar
