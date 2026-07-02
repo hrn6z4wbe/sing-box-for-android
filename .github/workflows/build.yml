@@ -27,21 +27,19 @@ jobs:
         id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r26b
+          ndk-version: r28
 
       - name: Build libbox.aar
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-          ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
-          go install github.com/sagernet/gomobile/cmd/gomobile@latest
-          gomobile init
           git clone --depth=1 https://github.com/SagerNet/sing-box.git sing-box-src
           cd sing-box-src
-          go run ./cmd/internal/build_libbox -target android -tags "with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_tailscale"
+          make lib_install
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          make lib_android
           mkdir -p ../app/libs
-          cp libbox.aar ../app/libs/
-          cp libbox.aar ../app/libs/libbox-legacy.aar
+          cp libbox*.aar ../app/libs/
           cd ..
 
       - name: Grant execute permission for gradlew
