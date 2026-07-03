@@ -60,7 +60,14 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Decode Custom Keystore
+        if: ${{ secrets.RELEASE_KEYSTORE != '' }}
+        run: |
+          echo "${{ secrets.RELEASE_KEYSTORE }}" | base64 --decode > app/release.keystore
+
       - name: Build APK (assembleOtherRelease)
+        env:
+          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
         run: ./gradlew assembleOtherRelease
 
       - name: Upload APK Artifact
