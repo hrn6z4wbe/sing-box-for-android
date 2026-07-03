@@ -20,12 +20,16 @@ plugins {
 
 fun getProps(propName: String): String {
     val propsInEnv = System.getenv("LOCAL_PROPERTIES")
-    if (propsInEnv != null) {
-        val props = Properties()
-        props.load(ByteArrayInputStream(Base64.getDecoder().decode(propsInEnv)))
-        val value = props.getProperty(propName)
-        if (value != null) {
-            return value
+    if (!propsInEnv.isNullOrBlank()) {
+        try {
+            val props = Properties()
+            props.load(ByteArrayInputStream(Base64.getMimeDecoder().decode(propsInEnv.trim())))
+            val value = props.getProperty(propName)
+            if (value != null) {
+                return value
+            }
+        } catch (e: Exception) {
+            println("Warning: failed to decode LOCAL_PROPERTIES: ${e.message}")
         }
     }
     val propsFile = rootProject.file("local.properties")
