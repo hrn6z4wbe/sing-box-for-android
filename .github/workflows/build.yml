@@ -61,9 +61,11 @@ jobs:
         run: chmod +x gradlew
 
       - name: Decode Custom Keystore
-        if: ${{ secrets.RELEASE_KEYSTORE != '' }}
+        env:
+          RELEASE_KEYSTORE: ${{ secrets.RELEASE_KEYSTORE }}
+        if: ${{ env.RELEASE_KEYSTORE != '' }}
         run: |
-          echo "${{ secrets.RELEASE_KEYSTORE }}" | base64 --decode > app/release.keystore
+          echo "$RELEASE_KEYSTORE" | base64 --decode > app/release.keystore
 
       - name: Build APK (assembleOtherRelease)
         env:
