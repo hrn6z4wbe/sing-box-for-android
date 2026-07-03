@@ -222,7 +222,7 @@ fun CoreSettingsScreen(navController: NavController) {
             }
         }
 
-        if (version.contains("-")) {
+        if (true) {
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
