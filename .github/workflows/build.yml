@@ -47,9 +47,8 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
-          git clone --depth=1 https://github.com/SagerNet/sing-box.git sing-box-src
+          git clone https://github.com/SagerNet/sing-box.git sing-box-src
           cd sing-box-src
-          git fetch --tags
           make lib_install
           export PATH="$PATH:$(go env GOPATH)/bin"
           make lib_android
