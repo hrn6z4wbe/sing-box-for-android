@@ -112,10 +112,16 @@ class LogViewModel :
 
     override fun requestClearLogs() {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                runCatching {
-                    CommandTarget.standaloneClient().clearLogs()
+            val sent =
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        CommandTarget.standaloneClient().clearLogs()
+                    }.isSuccess
                 }
+            // With the service stopped there is no broadcast to clear the UI,
+            // so the local buffer is cleared directly.
+            if (!sent) {
+                clearLogs()
             }
         }
     }
