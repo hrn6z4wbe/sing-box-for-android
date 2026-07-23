@@ -8,6 +8,7 @@ import android.net.Uri
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -75,6 +76,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.os.ConfigurationCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -116,6 +118,8 @@ import io.nekohasekai.sfa.compose.screen.dashboard.DashboardViewModel
 import io.nekohasekai.sfa.compose.screen.dashboard.GroupsCard
 import io.nekohasekai.sfa.compose.screen.dashboard.groups.GroupsViewModel
 import io.nekohasekai.sfa.compose.screen.log.LogViewModel
+import io.nekohasekai.sfa.compose.screen.tools.OpenConnectStatusViewModel
+import io.nekohasekai.sfa.compose.screen.tools.OpenVPNStatusViewModel
 import io.nekohasekai.sfa.compose.screen.tools.TailscaleSSHSharedViewModel
 import io.nekohasekai.sfa.compose.screen.tools.TailscaleStatusViewModel
 import io.nekohasekai.sfa.compose.screen.usbip.USBIPStatusViewModel
@@ -200,6 +204,13 @@ class MainActivity :
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ConfigurationCompat.getLocales(resources.configuration)[0]?.let { locale ->
+            runCatching {
+                Libbox.setLocale(locale.toLanguageTag())
+            }.onFailure {
+                Log.d("MainActivity", "set locale: ${it.message}")
+            }
+        }
         enableEdgeToEdge()
 
         connection.reconnect()
@@ -713,6 +724,37 @@ class MainActivity :
         }
         val dashboardUiState by dashboardViewModel.uiState.collectAsState()
 
+        LaunchedEffect(currentServiceStatus) {
+            dashboardViewModel.updateServiceStatus(currentServiceStatus)
+        }
+
+        if (dashboardUiState.showDeprecatedDialog && dashboardUiState.deprecatedNotes.isNotEmpty()) {
+            val note = dashboardUiState.deprecatedNotes.first()
+            AlertDialog(
+                onDismissRequest = { },
+                title = { Text(stringResource(R.string.error_deprecated_warning)) },
+                text = { Text(note.message) },
+                confirmButton = {
+                    TextButton(onClick = { dashboardViewModel.dismissDeprecatedNote() }) {
+                        Text(stringResource(R.string.ok))
+                    }
+                },
+                dismissButton =
+                if (!note.migrationLink.isNullOrBlank()) {
+                    {
+                        TextButton(onClick = {
+                            dashboardViewModel.sendGlobalEvent(UiEvent.OpenUrl(note.migrationLink))
+                            dashboardViewModel.dismissDeprecatedNote()
+                        }) {
+                            Text(stringResource(R.string.error_deprecated_documentation))
+                        }
+                    }
+                } else {
+                    null
+                },
+            )
+        }
+
         val isSettingsSubScreen = currentRoute?.startsWith("settings/") == true
         val isToolsSubScreen = currentRoute?.startsWith("tools/") == true
         val isConnectionsDetail = currentRoute?.startsWith("connections/detail") == true
@@ -771,6 +813,20 @@ class MainActivity :
             }
 
         val usbIPStatusViewModel: USBIPStatusViewModel? =
+            if (isToolsRoute) {
+                viewModel()
+            } else {
+                null
+            }
+
+        val openConnectStatusViewModel: OpenConnectStatusViewModel? =
+            if (isToolsRoute) {
+                viewModel()
+            } else {
+                null
+            }
+
+        val openVPNStatusViewModel: OpenVPNStatusViewModel? =
             if (isToolsRoute) {
                 viewModel()
             } else {
@@ -905,6 +961,8 @@ class MainActivity :
                     tailscaleStatusViewModel = tailscaleStatusViewModel,
                     tailscaleSSHSharedViewModel = tailscaleSSHSharedViewModel,
                     usbIPStatusViewModel = usbIPStatusViewModel,
+                    openConnectStatusViewModel = openConnectStatusViewModel,
+                    openVPNStatusViewModel = openVPNStatusViewModel,
                     modifier = Modifier.fillMaxSize(),
                 )
                 if (!useNavigationRail) {
@@ -1333,10 +1391,6 @@ class MainActivity :
 
     override fun onServiceStatusChanged(status: Status) {
         currentServiceStatus = status
-        // Update service status in ViewModels
-        if (::dashboardViewModel.isInitialized) {
-            dashboardViewModel.updateServiceStatus(status)
-        }
     }
 
     fun reconnect() {

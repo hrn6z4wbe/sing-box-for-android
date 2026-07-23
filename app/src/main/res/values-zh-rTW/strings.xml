@@ -286,6 +286,8 @@
     <string name="update_source">更新來源</string>
     <string name="update_source_github">GitHub</string>
     <string name="update_source_fdroid">F-Droid</string>
+    <string name="github_token">GitHub Token</string>
+    <string name="github_token_description">取得更高的 GitHub API 速率限制</string>
     <string name="fdroid_mirror">F-Droid 鏡像</string>
     <string name="fdroid_mirror_test_all">依延遲自動選擇</string>
     <string name="fdroid_mirror_testing">測試中…</string>
@@ -620,4 +622,9 @@
     <string name="remote_checking">檢查中…</string>
     <string name="remote_available">可用</string>
     <string name="remote_unavailable">不可用</string>
+    <string name="endpoint_globalprotect_sso_unsupported_android">Android 不支援 GlobalProtect SAML 瀏覽器驗證。</string>
+    <string name="endpoint_browser_cookie_missing">瀏覽器驗證已完成，但未取得所需的 VPN Cookie。</string>
+    <string name="endpoint_browser_navigation_failed">瀏覽器導覽失敗：%1$s</string>
+    <string name="endpoint_browser_too_many_windows">驗證頁面開啟了過多瀏覽器視窗。</string>
+    <string name="endpoint_browser_profile_unavailable">此裝置無法使用瀏覽器驗證。</string>
 </resources>

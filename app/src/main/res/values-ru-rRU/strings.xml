@@ -286,6 +286,8 @@
     <string name="update_source">Источник обновлений</string>
     <string name="update_source_github">GitHub</string>
     <string name="update_source_fdroid">F-Droid</string>
+    <string name="github_token">Токен GitHub</string>
+    <string name="github_token_description">Получите более высокие лимиты запросов GitHub API</string>
     <string name="fdroid_mirror">Зеркало F-Droid</string>
     <string name="fdroid_mirror_test_all">Автовыбор по задержке</string>
     <string name="fdroid_mirror_testing">Тестирование…</string>
@@ -627,4 +629,6 @@
     <string name="remote_checking">Проверка…</string>
     <string name="remote_available">Доступно</string>
     <string name="remote_unavailable">Недоступно</string>
+    <string name="endpoint_globalprotect_sso_unsupported_android">Браузерная аутентификация GlobalProtect SAML не поддерживается на Android.</string>
+    <string name="endpoint_browser_cookie_missing">Аутентификация в браузере завершена, но необходимый VPN cookie не получен.</string>
 </resources>
