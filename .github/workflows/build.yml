@@ -79,10 +79,7 @@ jobs:
       - name: Report Gradle failure
         if: failure() && hashFiles('gradle-build.log') != ''
         run: |
-          grep -E '(^e: |error:|FAILURE:|What went wrong:|Compilation failed|Unresolved reference|^\* )' gradle-build.log | tail -n 100 > gradle-errors.log || true
-          if [ ! -s gradle-errors.log ]; then
-            tail -n 60 gradle-build.log > gradle-errors.log
-          fi
+          tail -n 500 gradle-build.log | grep -v '^\[CXX1100\]' | tail -n 160 > gradle-errors.log
           message=$(sed -z 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' gradle-errors.log)
           echo "::error title=Gradle build failure::$message"
 
