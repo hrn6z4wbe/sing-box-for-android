@@ -82,16 +82,6 @@ fun DashboardCardRenderer(
             }
         }
 
-        CardGroup.Connections -> {
-            if (uiState.trafficVisible) {
-                ConnectionsCard(
-                    connectionsIn = uiState.connectionsIn,
-                    connectionsOut = uiState.connectionsOut,
-                    modifier = modifier,
-                )
-            }
-        }
-
         CardGroup.SystemProxy -> {
             if (uiState.systemProxyVisible) {
                 SystemProxyCard(

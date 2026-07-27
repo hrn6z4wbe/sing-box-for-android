@@ -9,7 +9,6 @@ import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -31,7 +30,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.UnfoldLess
@@ -62,7 +60,6 @@ import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -91,8 +88,6 @@ import io.nekohasekai.sfa.Application
 import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.bg.BoxService
-import io.nekohasekai.sfa.bg.CrashReportManager
-import io.nekohasekai.sfa.bg.OOMReportManager
 import io.nekohasekai.sfa.bg.ServiceConnection
 import io.nekohasekai.sfa.bg.ServiceNotification
 import io.nekohasekai.sfa.compat.WindowSizeClassCompat
@@ -100,29 +95,19 @@ import io.nekohasekai.sfa.compat.isWidthAtLeastBreakpointCompat
 import io.nekohasekai.sfa.compose.base.GlobalEventBus
 import io.nekohasekai.sfa.compose.base.SelectableMessageDialog
 import io.nekohasekai.sfa.compose.base.UiEvent
-import io.nekohasekai.sfa.compose.component.RemoteStatusBar
 import io.nekohasekai.sfa.compose.component.ServiceStatusBar
 import io.nekohasekai.sfa.compose.component.UpdateAvailableDialog
 import io.nekohasekai.sfa.compose.component.UptimeText
-import io.nekohasekai.sfa.compose.model.Connection
 import io.nekohasekai.sfa.compose.navigation.NewProfileArgs
 import io.nekohasekai.sfa.compose.navigation.ProfileRoutes
 import io.nekohasekai.sfa.compose.navigation.SFANavHost
 import io.nekohasekai.sfa.compose.navigation.Screen
 import io.nekohasekai.sfa.compose.navigation.bottomNavigationScreens
 import io.nekohasekai.sfa.compose.screen.configuration.ProfileImportHandler
-import io.nekohasekai.sfa.compose.screen.connections.ConnectionDetailsScreen
-import io.nekohasekai.sfa.compose.screen.connections.ConnectionsPage
-import io.nekohasekai.sfa.compose.screen.connections.ConnectionsViewModel
 import io.nekohasekai.sfa.compose.screen.dashboard.DashboardViewModel
 import io.nekohasekai.sfa.compose.screen.dashboard.GroupsCard
 import io.nekohasekai.sfa.compose.screen.dashboard.groups.GroupsViewModel
 import io.nekohasekai.sfa.compose.screen.log.LogViewModel
-import io.nekohasekai.sfa.compose.screen.tools.OpenConnectStatusViewModel
-import io.nekohasekai.sfa.compose.screen.tools.OpenVPNStatusViewModel
-import io.nekohasekai.sfa.compose.screen.tools.TailscaleSSHSharedViewModel
-import io.nekohasekai.sfa.compose.screen.tools.TailscaleStatusViewModel
-import io.nekohasekai.sfa.compose.screen.usbip.USBIPStatusViewModel
 import io.nekohasekai.sfa.compose.theme.SFATheme
 import io.nekohasekai.sfa.compose.topbar.LocalTopBarController
 import io.nekohasekai.sfa.compose.topbar.TopBarController
@@ -135,7 +120,6 @@ import io.nekohasekai.sfa.database.Settings
 import io.nekohasekai.sfa.ktx.hasPermission
 import io.nekohasekai.sfa.ktx.launchCustomTab
 import io.nekohasekai.sfa.update.UpdateState
-import io.nekohasekai.sfa.utils.RemoteControlManager
 import io.nekohasekai.sfa.vendor.Vendor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -200,8 +184,6 @@ class MainActivity :
                 onServiceAlert(Alert.RequestVPNPermission, null)
             }
         }
-    private val pendingNavigationRoute = mutableStateOf<String?>(null)
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ConfigurationCompat.getLocales(resources.configuration)[0]?.let { locale ->
@@ -214,8 +196,6 @@ class MainActivity :
         enableEdgeToEdge()
 
         connection.reconnect()
-        RemoteControlManager.restore()
-
         UpdateState.loadFromCache()
         if (Settings.checkUpdateEnabled) {
             lifecycleScope.launch(Dispatchers.IO) {
@@ -245,9 +225,6 @@ class MainActivity :
     private fun handleIntent(intent: Intent?) {
         if (intent == null) {
             return
-        }
-        if (intent.categories?.contains("de.robv.android.xposed.category.MODULE_SETTINGS") == true) {
-            pendingNavigationRoute.value = "settings/privilege"
         }
         val uri = intent.data ?: return
         if (intent.action == Action.OPEN_URL) {
@@ -435,9 +412,6 @@ class MainActivity :
 
         // Groups Sheet state
         var showGroupsSheet by remember { mutableStateOf(false) }
-
-        // Connections Sheet state
-        var showConnectionsSheet by remember { mutableStateOf(false) }
 
         // Error dialog state for UiEvent.ShowError
         val pendingIntentError = pendingIntentErrorMessage
@@ -712,11 +686,6 @@ class MainActivity :
             )
         }
 
-        val remoteServer by RemoteControlManager.remoteServer.collectAsState()
-        val remoteConnected by RemoteControlManager.isConnected.collectAsState()
-        val remoteStartedAt by RemoteControlManager.startedAt.collectAsState()
-        val isRemote = remoteServer != null
-
         // Initialize the dashboard view model and store reference
         val dashboardViewModel: DashboardViewModel = viewModel()
         if (!::dashboardViewModel.isInitialized) {
@@ -756,23 +725,18 @@ class MainActivity :
         }
 
         val isSettingsSubScreen = currentRoute?.startsWith("settings/") == true
-        val isToolsSubScreen = currentRoute?.startsWith("tools/") == true
-        val isConnectionsDetail = currentRoute?.startsWith("connections/detail") == true
         val isProfileRoute = currentRoute?.startsWith("profile/") == true
         val currentRootRoute =
             when {
                 isSettingsSubScreen -> Screen.Settings.route
-                isToolsSubScreen -> Screen.Tools.route
-                currentRoute?.startsWith(Screen.Connections.route) == true -> Screen.Connections.route
                 currentRoute?.startsWith(Screen.Log.route) == true -> Screen.Log.route
                 isProfileRoute -> Screen.Dashboard.route
                 else -> currentRoute
             }
-        val isConnectionsRoute = currentRootRoute == Screen.Connections.route
         val isGroupsRoute = currentRootRoute == Screen.Groups.route
         val isLogRoute = currentRootRoute == Screen.Log.route
 
-        val isSubScreen = isSettingsSubScreen || isToolsSubScreen || isConnectionsDetail || isProfileRoute
+        val isSubScreen = isSettingsSubScreen || isProfileRoute
         // Get LogViewModel instance if we're on the Log screen
         val logViewModel: LogViewModel? =
             if (isLogRoute) {
@@ -795,51 +759,7 @@ class MainActivity :
                 null
             }
 
-        val connectionsViewModel: ConnectionsViewModel? =
-            if (isConnectionsRoute) {
-                viewModel()
-            } else {
-                null
-            }
-
-        val tailscaleSSHSharedViewModel: TailscaleSSHSharedViewModel = viewModel()
-
-        val isToolsRoute = currentRootRoute == Screen.Tools.route
-        val tailscaleStatusViewModel: TailscaleStatusViewModel? =
-            if (isToolsRoute) {
-                viewModel()
-            } else {
-                null
-            }
-
-        val usbIPStatusViewModel: USBIPStatusViewModel? =
-            if (isToolsRoute) {
-                viewModel()
-            } else {
-                null
-            }
-
-        val openConnectStatusViewModel: OpenConnectStatusViewModel? =
-            if (isToolsRoute) {
-                viewModel()
-            } else {
-                null
-            }
-
-        val openVPNStatusViewModel: OpenVPNStatusViewModel? =
-            if (isToolsRoute) {
-                viewModel()
-            } else {
-                null
-            }
-
         val showGroupsInNav = dashboardUiState.hasGroups
-        val showConnectionsInNav =
-            if (isRemote) {
-                remoteConnected
-            } else {
-                currentServiceStatus == Status.Started || currentServiceStatus == Status.Starting
-            }
 
         val railScreens =
             buildList {
@@ -847,11 +767,7 @@ class MainActivity :
                 if (showGroupsInNav) {
                     add(Screen.Groups)
                 }
-                if (showConnectionsInNav) {
-                    add(Screen.Connections)
-                }
                 add(Screen.Log)
-                add(Screen.Tools)
                 add(Screen.Settings)
             }
 
@@ -859,25 +775,11 @@ class MainActivity :
             buildSet {
                 add(Screen.Dashboard.route)
                 add(Screen.Log.route)
-                add(Screen.Tools.route)
                 add(Screen.Settings.route)
                 if (useNavigationRail && showGroupsInNav) {
                     add(Screen.Groups.route)
                 }
-                if (useNavigationRail && showConnectionsInNav) {
-                    add(Screen.Connections.route)
-                }
             }
-
-        val pendingRoute = pendingNavigationRoute.value
-        LaunchedEffect(pendingRoute) {
-            if (pendingRoute != null) {
-                navController.navigate(pendingRoute) {
-                    launchSingleTop = true
-                }
-                pendingNavigationRoute.value = null
-            }
-        }
 
         LaunchedEffect(allowedRoutes, currentRootRoute, useNavigationRail) {
             if (currentRootRoute != null && !allowedRoutes.contains(currentRootRoute)) {
@@ -939,12 +841,10 @@ class MainActivity :
                     .fillMaxSize()
                     .padding(paddingValues),
             ) {
-                // Service Status Bar (shown when service is running or stopping);
-                // remote control replaces it with the remote session bar.
                 val serviceRunning =
                     currentServiceStatus == Status.Started || currentServiceStatus == Status.Starting
-                val showStatusBar = isRemote || serviceRunning || currentServiceStatus == Status.Stopping
-                val showStartFab = !isRemote && !serviceRunning && dashboardUiState.selectedProfileId != -1L
+                val showStatusBar = serviceRunning || currentServiceStatus == Status.Stopping
+                val showStartFab = !serviceRunning && dashboardUiState.selectedProfileId != -1L
 
                 SFANavHost(
                     navController = navController,
@@ -957,43 +857,19 @@ class MainActivity :
                     dashboardViewModel = dashboardViewModel,
                     logViewModel = logViewModel,
                     groupsViewModel = groupsViewModel,
-                    connectionsViewModel = connectionsViewModel,
-                    tailscaleStatusViewModel = tailscaleStatusViewModel,
-                    tailscaleSSHSharedViewModel = tailscaleSSHSharedViewModel,
-                    usbIPStatusViewModel = usbIPStatusViewModel,
-                    openConnectStatusViewModel = openConnectStatusViewModel,
-                    openVPNStatusViewModel = openVPNStatusViewModel,
                     modifier = Modifier.fillMaxSize(),
                 )
                 if (!useNavigationRail) {
-                    if (isRemote) {
-                        RemoteStatusBar(
-                            visible = !isSubScreen,
-                            serverName = remoteServer?.displayName ?: "",
-                            isConnected = remoteConnected,
-                            startTime = remoteStartedAt,
-                            groupsCount = dashboardUiState.groupsCount,
-                            hasGroups = dashboardUiState.hasGroups,
-                            onGroupsClick = { showGroupsSheet = true },
-                            connectionsCount = dashboardUiState.connectionsCount,
-                            onConnectionsClick = { showConnectionsSheet = true },
-                            onDisconnectClick = { RemoteControlManager.exitRemoteControl() },
-                            modifier = Modifier.align(Alignment.BottomCenter),
-                        )
-                    } else {
-                        ServiceStatusBar(
-                            visible = showStatusBar && !isSubScreen,
-                            serviceStatus = currentServiceStatus,
-                            startTime = dashboardUiState.serviceStartTime,
-                            groupsCount = dashboardUiState.groupsCount,
-                            hasGroups = dashboardUiState.hasGroups,
-                            onGroupsClick = { showGroupsSheet = true },
-                            connectionsCount = dashboardUiState.connectionsCount,
-                            onConnectionsClick = { showConnectionsSheet = true },
-                            onStopClick = { dashboardViewModel.toggleService() },
-                            modifier = Modifier.align(Alignment.BottomCenter),
-                        )
-                    }
+                    ServiceStatusBar(
+                        visible = showStatusBar && !isSubScreen,
+                        serviceStatus = currentServiceStatus,
+                        startTime = dashboardUiState.serviceStartTime,
+                        groupsCount = dashboardUiState.groupsCount,
+                        hasGroups = dashboardUiState.hasGroups,
+                        onGroupsClick = { showGroupsSheet = true },
+                        onStopClick = { dashboardViewModel.toggleService() },
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    )
                 }
 
                 val showPadFab = useNavigationRail && !isSubScreen && (showStartFab || showStatusBar)
@@ -1009,35 +885,7 @@ class MainActivity :
                         val isRunning =
                             currentServiceStatus == Status.Started || currentServiceStatus == Status.Starting
                         val isStopping = currentServiceStatus == Status.Stopping
-                        if (isRemote) {
-                            ExtendedFloatingActionButton(
-                                onClick = { RemoteControlManager.exitRemoteControl() },
-                                icon = {
-                                    Icon(
-                                        imageVector = Icons.Default.LinkOff,
-                                        contentDescription = stringResource(R.string.remote_disconnect),
-                                    )
-                                },
-                                text = {
-                                    if (remoteConnected && remoteStartedAt != null) {
-                                        UptimeText(startTime = remoteStartedAt!!)
-                                    } else {
-                                        Text(
-                                            text =
-                                            if (remoteConnected) {
-                                                remoteServer?.displayName ?: ""
-                                            } else {
-                                                stringResource(R.string.remote_connecting)
-                                            },
-                                            style = MaterialTheme.typography.labelLarge,
-                                        )
-                                    }
-                                },
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.height(64.dp),
-                            )
-                        } else if (currentServiceStatus == Status.Stopped) {
+                        if (currentServiceStatus == Status.Stopped) {
                             FloatingActionButton(
                                 onClick = { startService() },
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1113,8 +961,7 @@ class MainActivity :
                 } else {
                     // Start FAB (shown when service is stopped and a profile is selected)
                     androidx.compose.animation.AnimatedVisibility(
-                        visible = !isRemote &&
-                            currentServiceStatus == Status.Stopped &&
+                        visible = currentServiceStatus == Status.Stopped &&
                             dashboardUiState.selectedProfileId != -1L &&
                             !isSubScreen,
                         enter = scaleIn(),
@@ -1138,18 +985,6 @@ class MainActivity :
             }
         }
 
-        val crashReportUnreadCount by CrashReportManager.unreadCount.collectAsState()
-        val oomReportUnreadCount by OOMReportManager.unreadCount.collectAsState()
-        // The crash/OOM report entries are hidden in remote control mode.
-        val toolsUnreadCount = if (isRemote) 0 else crashReportUnreadCount + oomReportUnreadCount
-
-        LaunchedEffect(Unit) {
-            withContext(Dispatchers.IO) {
-                CrashReportManager.refresh()
-                OOMReportManager.refresh()
-            }
-        }
-
         CompositionLocalProvider(LocalTopBarController provides topBarController) {
             if (useNavigationRail) {
                 Row(modifier = Modifier.fillMaxSize()) {
@@ -1165,10 +1000,6 @@ class MainActivity :
                                     icon = {
                                         if (screen == Screen.Settings && hasUpdate) {
                                             BadgedBox(badge = { Badge(containerColor = MaterialTheme.colorScheme.primary) }) {
-                                                Icon(screen.icon, contentDescription = null)
-                                            }
-                                        } else if (screen == Screen.Tools && toolsUnreadCount > 0) {
-                                            BadgedBox(badge = { Badge(containerColor = MaterialTheme.colorScheme.error) { Text("$toolsUnreadCount") } }) {
                                                 Icon(screen.icon, contentDescription = null)
                                             }
                                         } else {
@@ -1213,10 +1044,6 @@ class MainActivity :
                                         icon = {
                                             if (screen == Screen.Settings && hasUpdate) {
                                                 BadgedBox(badge = { Badge(containerColor = MaterialTheme.colorScheme.primary) }) {
-                                                    Icon(screen.icon, contentDescription = null)
-                                                }
-                                            } else if (screen == Screen.Tools && toolsUnreadCount > 0) {
-                                                BadgedBox(badge = { Badge(containerColor = MaterialTheme.colorScheme.error) { Text("$toolsUnreadCount") } }) {
                                                     Icon(screen.icon, contentDescription = null)
                                                 }
                                             } else {
@@ -1322,71 +1149,6 @@ class MainActivity :
             }
         }
 
-        // Connections ModalBottomSheet
-        if (showConnectionsSheet && !useNavigationRail) {
-            val connectionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-            val connectionsViewModel: ConnectionsViewModel = viewModel()
-            val connectionsUiState by connectionsViewModel.uiState.collectAsState()
-            var selectedConnectionId by remember { mutableStateOf<String?>(null) }
-            val selectedConnection = connectionsUiState.allConnections.find { it.id == selectedConnectionId }
-            var cachedConnection by remember { mutableStateOf<Connection?>(null) }
-            if (selectedConnection != null) {
-                cachedConnection = selectedConnection
-            } else if (selectedConnectionId != null && cachedConnection?.isActive == true) {
-                cachedConnection = cachedConnection?.copy(closedAt = System.currentTimeMillis())
-            }
-            val displayConnection = if (selectedConnectionId != null) cachedConnection else null
-
-            LaunchedEffect(Unit) {
-                connectionsViewModel.setVisible(true)
-            }
-
-            DisposableEffect(Unit) {
-                onDispose {
-                    connectionsViewModel.setVisible(false)
-                }
-            }
-
-            BackHandler(enabled = selectedConnectionId != null) {
-                selectedConnectionId = null
-            }
-
-            ModalBottomSheet(
-                onDismissRequest = {
-                    showConnectionsSheet = false
-                    selectedConnectionId = null
-                },
-                sheetState = connectionsSheetState,
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(),
-                ) {
-                    if (displayConnection != null) {
-                        ConnectionDetailsScreen(
-                            connection = displayConnection,
-                            onBack = { selectedConnectionId = null },
-                            onClose = {
-                                selectedConnectionId?.let { connectionsViewModel.closeConnection(it) }
-                            },
-                            asSheet = true,
-                        )
-                    } else {
-                        ConnectionsPage(
-                            serviceStatus = currentServiceStatus,
-                            viewModel = connectionsViewModel,
-                            asSheet = true,
-                            showTitle = true,
-                            onConnectionClick = { selectedConnectionId = it },
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-                }
-            }
-        }
     }
 
     override fun onServiceStatusChanged(status: Status) {

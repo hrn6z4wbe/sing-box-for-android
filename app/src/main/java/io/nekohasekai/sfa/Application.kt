@@ -14,15 +14,10 @@ import androidx.core.content.getSystemService
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.SetupOptions
 import io.nekohasekai.sfa.bg.AppChangeReceiver
-import io.nekohasekai.sfa.bg.CrashReportManager
-import io.nekohasekai.sfa.bg.OOMReportManager
 import io.nekohasekai.sfa.bg.UpdateProfileWork
 import io.nekohasekai.sfa.constant.Bugs
 import io.nekohasekai.sfa.database.Settings
 import io.nekohasekai.sfa.utils.AppLifecycleObserver
-import io.nekohasekai.sfa.utils.HookModuleUpdateNotifier
-import io.nekohasekai.sfa.utils.HookStatusClient
-import io.nekohasekai.sfa.utils.PrivilegeSettingsClient
 import io.nekohasekai.sfa.vendor.Vendor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -47,9 +42,6 @@ class Application : Application() {
         }.onFailure {
             Log.d("Application", "set locale: ${it.message}")
         }
-        HookStatusClient.register(this)
-        PrivilegeSettingsClient.register(this)
-
         val baseDir = filesDir
         baseDir.mkdirs()
         val workingDir = getExternalFilesDir(null)
@@ -57,15 +49,12 @@ class Application : Application() {
         tempDir.mkdirs()
         if (workingDir != null) {
             workingDir.mkdirs()
-            CrashReportManager.install(workingDir, baseDir)
-            OOMReportManager.install(workingDir)
         }
 
         @Suppress("OPT_IN_USAGE")
         GlobalScope.launch(Dispatchers.IO) {
             initialize(baseDir, workingDir, tempDir)
             UpdateProfileWork.reconfigureUpdater()
-            HookModuleUpdateNotifier.sync(this@Application)
         }
 
         if (Vendor.isPerAppProxyAvailable()) {

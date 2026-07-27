@@ -11,7 +11,6 @@ import io.nekohasekai.sfa.constant.Status
 import io.nekohasekai.sfa.utils.AppLifecycleObserver
 import io.nekohasekai.sfa.utils.CommandClient
 import io.nekohasekai.sfa.utils.CommandTarget
-import io.nekohasekai.sfa.utils.RemoteControlManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,19 +56,10 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
         }
 
         viewModelScope.launch {
-            combine(
-                AppLifecycleObserver.isForeground,
-                RemoteControlManager.remoteServer,
-                RemoteControlManager.isConnected,
-                _serviceStatus,
-            ) { foreground, remoteServer, remoteConnected, status ->
-                SessionTarget(
-                    connect = foreground &&
-                        if (remoteServer != null) remoteConnected else status == Status.Started,
-                    remoteServerId = remoteServer?.id,
-                )
-            }.distinctUntilChanged().collect { target ->
-                if (target.connect) {
+            combine(AppLifecycleObserver.isForeground, _serviceStatus) { foreground, status ->
+                foreground && status == Status.Started
+            }.distinctUntilChanged().collect { shouldConnect ->
+                if (shouldConnect) {
                     if (isUsingSharedClient) {
                         commandClient.addHandler(this@GroupsViewModel)
                     } else {
@@ -87,8 +77,6 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
         }
     }
 
-    private data class SessionTarget(val connect: Boolean, val remoteServerId: Long?)
-
     override fun createInitialState() = GroupsUiState()
 
     override fun onCleared() {
@@ -101,9 +89,6 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
     }
 
     private fun handleServiceStatusChange(status: Status) {
-        if (RemoteControlManager.remoteServer.value != null) {
-            return
-        }
         if (status != Status.Started) {
             updateState {
                 copy(

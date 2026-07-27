@@ -23,14 +23,12 @@ open class CommandClient(
     private val scope: CoroutineScope,
     private val connectionTypes: List<ConnectionType>,
     private val handler: Handler,
-    private val localOnly: Boolean = false,
 ) {
     constructor(
         scope: CoroutineScope,
         connectionType: ConnectionType,
         handler: Handler,
-        localOnly: Boolean = false,
-    ) : this(scope, listOf(connectionType), handler, localOnly)
+    ) : this(scope, listOf(connectionType), handler)
 
     private val additionalHandlers = mutableListOf<Handler>()
     private var cachedGroups: MutableList<OutboundGroup>? = null
@@ -116,8 +114,6 @@ open class CommandClient(
             previousClient = commandClient
             commandClient = null
         }
-        // A remote connect dials over the network and blocks until the probe
-        // completes, so it must run off the main thread.
         if (previousClient != null) {
             // The dropped Go-side Disconnected callback is suppressed by the epoch
             // bump, so the owner-initiated disconnect is reported deterministically.
@@ -143,19 +139,9 @@ open class CommandClient(
                 options.addCommand(command)
             }
             options.statusInterval = 1 * 1000 * 1000 * 1000
-            val remoteServer = if (localOnly) null else CommandTarget.remoteServer
             val newClient: io.nekohasekai.libbox.CommandClient
             try {
-                newClient =
-                    if (remoteServer != null) {
-                        Libbox.newRemoteCommandClient(
-                            ClientHandler(epoch),
-                            options,
-                            CommandTarget.libboxOptions(remoteServer),
-                        )
-                    } else {
-                        io.nekohasekai.libbox.CommandClient(ClientHandler(epoch), options)
-                    }
+                newClient = io.nekohasekai.libbox.CommandClient(ClientHandler(epoch), options)
                 newClient.connect()
             } catch (e: Exception) {
                 Log.d("CommandClient", "connect failed", e)

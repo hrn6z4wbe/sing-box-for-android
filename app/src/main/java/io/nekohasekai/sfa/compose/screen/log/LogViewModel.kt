@@ -7,7 +7,6 @@ import io.nekohasekai.sfa.constant.Status
 import io.nekohasekai.sfa.utils.AppLifecycleObserver
 import io.nekohasekai.sfa.utils.CommandClient
 import io.nekohasekai.sfa.utils.CommandTarget
-import io.nekohasekai.sfa.utils.RemoteControlManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -36,19 +35,10 @@ class LogViewModel :
 
     init {
         viewModelScope.launch {
-            combine(
-                AppLifecycleObserver.isForeground,
-                RemoteControlManager.remoteServer,
-                RemoteControlManager.isConnected,
-                serviceStatusFlow,
-            ) { foreground, remoteServer, remoteConnected, status ->
-                SessionTarget(
-                    connect = foreground &&
-                        if (remoteServer != null) remoteConnected else status == Status.Started,
-                    remoteServerId = remoteServer?.id,
-                )
-            }.distinctUntilChanged().collect { target ->
-                if (target.connect) {
+            combine(AppLifecycleObserver.isForeground, serviceStatusFlow) { foreground, status ->
+                foreground && status == Status.Started
+            }.distinctUntilChanged().collect { shouldConnect ->
+                if (shouldConnect) {
                     commandClient.connect()
                 } else {
                     commandClient.disconnect()
@@ -56,8 +46,6 @@ class LogViewModel :
             }
         }
     }
-
-    private data class SessionTarget(val connect: Boolean, val remoteServerId: Long?)
 
     private fun processLogEntry(entry: LogEntry): ProcessedLogEntry {
         val level = LogLevel.entries.find { it.priority == entry.level } ?: LogLevel.Default
@@ -73,9 +61,6 @@ class LogViewModel :
         serviceStatusFlow.value = status
         _uiState.update { it.copy(serviceStatus = status) }
 
-        if (RemoteControlManager.remoteServer.value != null) {
-            return
-        }
         when (status) {
             Status.Stopped, Status.Stopping -> {
                 _uiState.update { it.copy(isConnected = false) }

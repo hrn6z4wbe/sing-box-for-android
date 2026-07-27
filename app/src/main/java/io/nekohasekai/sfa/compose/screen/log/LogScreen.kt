@@ -94,11 +94,8 @@ import io.nekohasekai.sfa.Application
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compat.WindowSizeClassCompat
 import io.nekohasekai.sfa.compat.isWidthAtLeastBreakpointCompat
-import io.nekohasekai.sfa.compose.component.RemoteControlMenuItems
-import io.nekohasekai.sfa.compose.component.rememberRemoteServers
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
 import io.nekohasekai.sfa.constant.Status
-import io.nekohasekai.sfa.utils.RemoteControlManager
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -127,8 +124,6 @@ fun LogScreen(
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val resolvedTitle = title ?: stringResource(R.string.title_log)
-    val remoteServer by RemoteControlManager.remoteServer.collectAsState()
-    val remoteServers by rememberRemoteServers()
     val emptyStateMessage = emptyMessage ?: stringResource(R.string.privilege_settings_hook_logs_empty)
 
     OverrideTopBar {
@@ -477,10 +472,6 @@ fun LogScreen(
                         Text(
                             text = if (showStatusInfo) {
                                 when {
-                                    remoteServer != null && !uiState.isConnected ->
-                                        stringResource(R.string.remote_connecting)
-
-                                    remoteServer != null -> stringResource(R.string.status_started)
                                     serviceStatus == Status.Started -> stringResource(R.string.status_started)
                                     serviceStatus == Status.Starting -> stringResource(R.string.status_starting)
                                     serviceStatus == Status.Stopping -> stringResource(R.string.status_stopping)
@@ -838,12 +829,6 @@ fun LogScreen(
                     )
                 }
 
-                if (showStatusInfo) {
-                    RemoteControlMenuItems(
-                        servers = remoteServers,
-                        onAction = { resolvedViewModel.toggleOptionsMenu() },
-                    )
-                }
             }
         }
 

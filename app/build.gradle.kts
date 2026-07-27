@@ -199,7 +199,6 @@ dependencies {
     val workVersion24 = "2.11.2"
     val cameraVersion24 = "1.6.1"
     val browserVersion24 = "1.10.0"
-    val webkitVersion24 = "1.16.0"
     val coreVersion24 = "1.19.0"
     val materialVersion24 = "1.14.0"
 
@@ -208,7 +207,6 @@ dependencies {
     val workVersion21 = "2.10.5"
     val cameraVersion21 = "1.4.2"
     val browserVersion21 = "1.9.0"
-    val webkitVersion21 = "1.14.0"
     val coreVersion21 = "1.17.0"
     val materialVersion21 = "1.13.0"
 
@@ -237,7 +235,6 @@ dependencies {
     "playImplementation"("androidx.camera:camera-lifecycle:$cameraVersion24")
     "playImplementation"("androidx.camera:camera-camera2:$cameraVersion24")
     "playImplementation"("androidx.browser:browser:$browserVersion24")
-    "playImplementation"("androidx.webkit:webkit:$webkitVersion24")
     "playImplementation"("androidx.core:core-ktx:$coreVersion24")
     "playImplementation"("com.google.android.material:material:$materialVersion24")
     "playAnnotationProcessor"("androidx.room:room-compiler:$roomVersion24")
@@ -252,7 +249,6 @@ dependencies {
     "otherImplementation"("androidx.camera:camera-lifecycle:$cameraVersion24")
     "otherImplementation"("androidx.camera:camera-camera2:$cameraVersion24")
     "otherImplementation"("androidx.browser:browser:$browserVersion24")
-    "otherImplementation"("androidx.webkit:webkit:$webkitVersion24")
     "otherImplementation"("androidx.core:core-ktx:$coreVersion24")
     "otherImplementation"("com.google.android.material:material:$materialVersion24")
     "kspOther"("androidx.room:room-compiler:$roomVersion24")
@@ -267,7 +263,6 @@ dependencies {
     "otherLegacyImplementation"("androidx.camera:camera-lifecycle:$cameraVersion21")
     "otherLegacyImplementation"("androidx.camera:camera-camera2:$cameraVersion21")
     "otherLegacyImplementation"("androidx.browser:browser:$browserVersion21")
-    "otherLegacyImplementation"("androidx.webkit:webkit:$webkitVersion21")
     "otherLegacyImplementation"("androidx.core:core-ktx:$coreVersion21")
     "otherLegacyImplementation"("com.google.android.material:material:$materialVersion21")
     "kspOtherLegacy"("androidx.room:room-compiler:$roomVersion21")
@@ -362,13 +357,6 @@ dependencies {
     implementation("com.github.jeziellago:compose-markdown:0.7.2")
     implementation("org.kodein.emoji:emoji-kt:2.5.0")
 
-    // Terminal emulator
-    implementation(project(":terminal-emulator"))
-    implementation(project(":terminal-view"))
-
-    // Xposed API for self-hooking VPN hide module
-    compileOnly("de.robv.android.xposed:api:82")
-    compileOnly(project(":libxposed-api"))
 }
 
 val playCredentialsJSON = rootProject.file("service-account-credentials.json")

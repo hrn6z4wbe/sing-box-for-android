@@ -16,7 +16,6 @@ import io.nekohasekai.sfa.utils.AppLifecycleObserver
 import io.nekohasekai.sfa.utils.CommandClient
 import io.nekohasekai.sfa.utils.CommandTarget
 import io.nekohasekai.sfa.utils.HTTPClient
-import io.nekohasekai.sfa.utils.RemoteControlManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,7 +36,6 @@ enum class CardGroup {
     UploadTraffic,
     DownloadTraffic,
     Debug,
-    Connections,
     SystemProxy,
     Profiles,
 }
@@ -55,7 +53,6 @@ data class DashboardUiState(
     val isLoading: Boolean = false,
     val hasGroups: Boolean = false,
     val groupsCount: Int = 0,
-    val connectionsCount: Int = 0,
     val serviceStartTime: Long? = null,
     val deprecatedNotes: List<DeprecatedNote> = emptyList(),
     val showDeprecatedDialog: Boolean = false,
@@ -69,8 +66,6 @@ data class DashboardUiState(
     val isStatusVisible: Boolean = false,
     // Traffic
     val trafficVisible: Boolean = false,
-    val connectionsIn: String = "0",
-    val connectionsOut: String = "0",
     val uplink: String = "0 B/s",
     val downlink: String = "0 B/s",
     val uplinkTotal: String = "0 B",
@@ -92,7 +87,6 @@ data class DashboardUiState(
             CardGroup.UploadTraffic,
             CardGroup.DownloadTraffic,
             CardGroup.Debug,
-            CardGroup.Connections,
             CardGroup.SystemProxy,
             CardGroup.Profiles,
         ),
@@ -101,7 +95,6 @@ data class DashboardUiState(
             CardGroup.UploadTraffic,
             CardGroup.DownloadTraffic,
             CardGroup.Debug,
-            CardGroup.Connections,
             CardGroup.SystemProxy,
             CardGroup.ClashMode,
             CardGroup.Profiles,
@@ -112,7 +105,6 @@ data class DashboardUiState(
             CardGroup.UploadTraffic to CardWidth.Half,
             CardGroup.DownloadTraffic to CardWidth.Half,
             CardGroup.Debug to CardWidth.Half,
-            CardGroup.Connections to CardWidth.Half,
             CardGroup.SystemProxy to CardWidth.Full,
             CardGroup.Profiles to CardWidth.Full,
         ),
@@ -160,19 +152,10 @@ class DashboardViewModel :
         ProfileManager.registerCallback(::onProfilesChanged)
 
         viewModelScope.launch {
-            combine(
-                AppLifecycleObserver.isForeground,
-                RemoteControlManager.remoteServer,
-                RemoteControlManager.isConnected,
-                _serviceStatus,
-            ) { foreground, remoteServer, remoteConnected, status ->
-                SessionTarget(
-                    connect = foreground &&
-                        if (remoteServer != null) remoteConnected else status == Status.Started,
-                    remoteServerId = remoteServer?.id,
-                )
-            }.distinctUntilChanged().collect { target ->
-                if (target.connect) {
+            combine(AppLifecycleObserver.isForeground, _serviceStatus) { foreground, status ->
+                foreground && status == Status.Started
+            }.distinctUntilChanged().collect { shouldConnect ->
+                if (shouldConnect) {
                     commandClient.connect()
                 } else {
                     commandClient.disconnect()
@@ -180,8 +163,6 @@ class DashboardViewModel :
             }
         }
     }
-
-    private data class SessionTarget(val connect: Boolean, val remoteServerId: Long?)
 
     override fun onCleared() {
         super.onCleared()
@@ -455,12 +436,7 @@ class DashboardViewModel :
             updateState {
                 copy(
                     serviceStatus = status,
-                    isStatusVisible =
-                    if (RemoteControlManager.remoteServer.value != null) {
-                        isStatusVisible
-                    } else {
-                        status == Status.Starting || status == Status.Started
-                    },
+                    isStatusVisible = status == Status.Starting || status == Status.Started,
                 )
             }
             handleServiceStatusChange(status)
@@ -468,34 +444,24 @@ class DashboardViewModel :
     }
 
     private fun handleServiceStatusChange(status: Status) {
-        val isRemote = RemoteControlManager.remoteServer.value != null
         when (status) {
             Status.Started -> {
                 checkDeprecatedNotes()
-                if (isRemote) {
-                    return
-                }
                 reloadSystemProxyStatus()
                 reloadStartedAt()
             }
 
             Status.Stopped -> {
-                if (isRemote) {
-                    return
-                }
                 updateState {
                     copy(
                         hasGroups = false,
                         groupsCount = 0,
-                        connectionsCount = 0,
                         serviceStartTime = null,
                         clashModeVisible = false,
                         systemProxyVisible = false,
                         trafficVisible = false,
                         memory = "",
                         goroutines = "",
-                        connectionsIn = "0",
-                        connectionsOut = "0",
                         uplink = "0 B/s",
                         downlink = "0 B/s",
                         uplinkTotal = "0 B",
@@ -586,9 +552,7 @@ class DashboardViewModel :
     override fun onConnected() {
         viewModelScope.launch(Dispatchers.Main) {
             updateState { copy(isStatusVisible = true) }
-            // Returning from remote control skipped the local reloads that
-            // normally run when the service starts.
-            if (RemoteControlManager.remoteServer.value == null && _serviceStatus.value == Status.Started) {
+            if (_serviceStatus.value == Status.Started) {
                 reloadSystemProxyStatus()
                 reloadStartedAt()
             }
@@ -623,9 +587,6 @@ class DashboardViewModel :
                     goroutines = status.goroutines.toString(),
                     // Only set trafficVisible to true, never back to false from status updates
                     trafficVisible = if (status.trafficAvailable) true else trafficVisible,
-                    connectionsCount = status.connectionsIn,
-                    connectionsIn = status.connectionsIn.toString(),
-                    connectionsOut = status.connectionsOut.toString(),
                     uplink = "${Libbox.formatBytes(status.uplink)}/s",
                     downlink = "${Libbox.formatBytes(status.downlink)}/s",
                     // Only update total values if they've actually changed
@@ -727,7 +688,6 @@ class DashboardViewModel :
         CardGroup.UploadTraffic,
         CardGroup.DownloadTraffic,
         CardGroup.Debug,
-        CardGroup.Connections,
         CardGroup.SystemProxy,
         CardGroup.ClashMode,
         CardGroup.Profiles,
