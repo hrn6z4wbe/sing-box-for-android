@@ -69,7 +69,7 @@ fun SFANavHost(
                 showStartFab = showStartFab,
                 showStatusBar = showStatusBar,
                 onOpenNewProfile = onOpenNewProfile,
-                viewModel = dashboardViewModel ?: androidx.lifecycle.viewmodel.compose.viewModel(),
+                viewModel = dashboardViewModel ?: androidx.lifecycle.viewmodel.compose.viewModel<DashboardViewModel>(),
             )
         }
 
@@ -78,14 +78,14 @@ fun SFANavHost(
                 serviceStatus = serviceStatus,
                 showStartFab = showStartFab,
                 showStatusBar = showStatusBar,
-                viewModel = logViewModel ?: androidx.lifecycle.viewmodel.compose.viewModel(),
+                viewModel = logViewModel ?: androidx.lifecycle.viewmodel.compose.viewModel<LogViewModel>(),
             )
         }
 
         composable(Screen.Groups.route) {
             GroupsCard(
                 serviceStatus = serviceStatus,
-                viewModel = groupsViewModel ?: androidx.lifecycle.viewmodel.compose.viewModel(),
+                viewModel = groupsViewModel ?: androidx.lifecycle.viewmodel.compose.viewModel<GroupsViewModel>(),
                 showTopBar = true,
                 modifier = Modifier.fillMaxSize(),
             )
