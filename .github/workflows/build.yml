@@ -79,7 +79,11 @@ jobs:
       - name: Report Gradle failure
         if: failure() && hashFiles('gradle-build.log') != ''
         run: |
-          message=$(tail -n 120 gradle-build.log | sed -z 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')
+          grep -E '(^e: |error:|FAILURE:|What went wrong:|Compilation failed|Unresolved reference|^\* )' gradle-build.log | tail -n 100 > gradle-errors.log || true
+          if [ ! -s gradle-errors.log ]; then
+            tail -n 60 gradle-build.log > gradle-errors.log
+          fi
+          message=$(sed -z 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' gradle-errors.log)
           echo "::error title=Gradle build failure::$message"
 
       - name: Upload APK Artifact
