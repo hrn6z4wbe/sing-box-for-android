@@ -72,7 +72,15 @@ jobs:
       - name: Build APK (assembleOtherRelease)
         env:
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
-        run: ./gradlew assembleOtherRelease
+        run: |
+          set -o pipefail
+          ./gradlew assembleOtherRelease 2>&1 | tee gradle-build.log
+
+      - name: Report Gradle failure
+        if: failure() && hashFiles('gradle-build.log') != ''
+        run: |
+          message=$(tail -n 120 gradle-build.log | sed -z 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')
+          echo "::error title=Gradle build failure::$message"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
