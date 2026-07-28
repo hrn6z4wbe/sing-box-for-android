@@ -65,7 +65,19 @@ jobs:
             --name sing-box-android-apk \
             --dir release
 
+      - name: Check whether build release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "RELEASE_EXISTS=true" >> "$GITHUB_ENV"
+            echo "Release $RELEASE_TAG already exists; skipping duplicate publication"
+          else
+            echo "RELEASE_EXISTS=false" >> "$GITHUB_ENV"
+          fi
+
       - name: Check release token
+        if: env.RELEASE_EXISTS != 'true'
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
@@ -75,6 +87,7 @@ jobs:
           fi
 
       - name: Create GitHub Release
+        if: env.RELEASE_EXISTS != 'true'
         uses: softprops/action-gh-release@v2
         with:
           files: release/*.apk
