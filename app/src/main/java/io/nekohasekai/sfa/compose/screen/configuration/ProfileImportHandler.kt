@@ -22,20 +22,6 @@ class ProfileImportHandler(private val context: Context) {
         data class Error(val message: String) : ImportResult()
     }
 
-    sealed class QRCodeParseResult {
-        data class RemoteProfile(val name: String, val host: String, val url: String) : QRCodeParseResult()
-
-        data class LocalProfile(val name: String) : QRCodeParseResult()
-
-        data class Error(val message: String) : QRCodeParseResult()
-    }
-
-    sealed class QRSParseResult {
-        data class Success(val name: String) : QRSParseResult()
-
-        data class Error(val message: String) : QRSParseResult()
-    }
-
     sealed class UriParseResult {
         data class Success(val name: String) : UriParseResult()
 
@@ -109,116 +95,6 @@ class ProfileImportHandler(private val context: Context) {
         }
     }
 
-    suspend fun parseQRCode(data: String): QRCodeParseResult = withContext(Dispatchers.IO) {
-        try {
-            // Check if it's a sing-box remote profile import link
-            if (data.startsWith("sing-box://import-remote-profile")) {
-                try {
-                    val profileInfo = Libbox.parseRemoteProfileImportLink(data)
-                    return@withContext QRCodeParseResult.RemoteProfile(
-                        name = profileInfo.name,
-                        host = profileInfo.host,
-                        url = profileInfo.url,
-                    )
-                } catch (e: Exception) {
-                    return@withContext QRCodeParseResult.Error(
-                        context.getString(R.string.error_decode_profile, e.message),
-                    )
-                }
-            }
-
-            // Check if it's a direct URL
-            if (data.startsWith("http://") || data.startsWith("https://")) {
-                val profileName = extractProfileNameFromUrl(data)
-                return@withContext QRCodeParseResult.RemoteProfile(
-                    name = profileName,
-                    host = extractHostFromUrl(data),
-                    url = data,
-                )
-            }
-
-            // Try to decode as profile content
-            val content =
-                try {
-                    Libbox.decodeProfileContent(data.toByteArray())
-                } catch (e: Exception) {
-                    return@withContext QRCodeParseResult.Error(
-                        context.getString(R.string.error_decode_profile, e.message),
-                    )
-                }
-
-            return@withContext QRCodeParseResult.LocalProfile(name = content.name)
-        } catch (e: Exception) {
-            QRCodeParseResult.Error(e.message ?: "Unknown error")
-        }
-    }
-
-    suspend fun importFromQRCode(data: String): ImportResult = withContext(Dispatchers.IO) {
-        try {
-            // Check if it's a sing-box remote profile import link
-            if (data.startsWith("sing-box://import-remote-profile")) {
-                try {
-                    val profileInfo = Libbox.parseRemoteProfileImportLink(data)
-                    return@withContext importRemoteProfile(profileInfo.name, profileInfo.url)
-                } catch (e: Exception) {
-                    return@withContext ImportResult.Error(
-                        context.getString(R.string.error_decode_profile, e.message),
-                    )
-                }
-            }
-
-            // Check if it's a URL or direct profile content
-            if (data.startsWith("http://") || data.startsWith("https://")) {
-                // Handle remote profile URL
-                val profileName = extractProfileNameFromUrl(data)
-                importRemoteProfile(profileName, data)
-            } else {
-                // Try to decode as profile content
-                val content =
-                    try {
-                        Libbox.decodeProfileContent(data.toByteArray())
-                    } catch (e: Exception) {
-                        return@withContext ImportResult.Error(
-                            context.getString(R.string.error_decode_profile, e.message),
-                        )
-                    }
-                importProfile(content)
-            }
-        } catch (e: Exception) {
-            ImportResult.Error(e.message ?: "Unknown error")
-        }
-    }
-
-    suspend fun parseQRSData(data: ByteArray): QRSParseResult = withContext(Dispatchers.IO) {
-        try {
-            val content = try {
-                Libbox.decodeProfileContent(data)
-            } catch (e: Exception) {
-                return@withContext QRSParseResult.Error(
-                    context.getString(R.string.error_decode_profile, e.message),
-                )
-            }
-            QRSParseResult.Success(name = content.name)
-        } catch (e: Exception) {
-            QRSParseResult.Error(e.message ?: "Unknown error")
-        }
-    }
-
-    suspend fun importFromQRSData(data: ByteArray): ImportResult = withContext(Dispatchers.IO) {
-        try {
-            val content = try {
-                Libbox.decodeProfileContent(data)
-            } catch (e: Exception) {
-                return@withContext ImportResult.Error(
-                    context.getString(R.string.error_decode_profile, e.message),
-                )
-            }
-            importProfile(content)
-        } catch (e: Exception) {
-            ImportResult.Error(e.message ?: "Unknown error")
-        }
-    }
-
     private suspend fun importProfile(content: ProfileContent): ImportResult {
         val typedProfile = TypedProfile()
         val profile = Profile(name = content.name, typed = typedProfile)
@@ -251,49 +127,6 @@ class ProfileImportHandler(private val context: Context) {
         ProfileManager.create(profile, andSelect = true)
 
         return ImportResult.Success(profile)
-    }
-
-    private suspend fun importRemoteProfile(name: String, url: String): ImportResult {
-        val typedProfile =
-            TypedProfile().apply {
-                type = TypedProfile.Type.Remote
-                remoteURL = url
-                autoUpdate = true
-                autoUpdateInterval = 60
-                lastUpdated = Date()
-            }
-
-        val profile =
-            Profile(name = name, typed = typedProfile).apply {
-                userOrder = ProfileManager.nextOrder()
-            }
-
-        // Create empty config file for remote profile
-        val fileID = ProfileManager.nextFileID()
-        val configDirectory = File(context.filesDir, "configs").also { it.mkdirs() }
-        val configFile = File(configDirectory, "$fileID.json")
-        configFile.writeText("{}")
-        typedProfile.path = configFile.path
-
-        // Create profile in database and select it
-        ProfileManager.create(profile, andSelect = true)
-
-        return ImportResult.Success(profile)
-    }
-
-    private fun extractProfileNameFromUrl(url: String): String {
-        // Extract name from URL or use default
-        return url.substringAfterLast("/")
-            .substringBeforeLast(".")
-            .takeIf { it.isNotEmpty() }
-            ?: "Remote Profile"
-    }
-
-    private fun extractHostFromUrl(url: String): String = try {
-        val uri = Uri.parse(url)
-        uri.host ?: url
-    } catch (e: Exception) {
-        url
     }
 
     private fun getFileNameFromUri(uri: Uri): String {

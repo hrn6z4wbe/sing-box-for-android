@@ -35,15 +35,12 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.UnfoldLess
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
@@ -82,10 +79,8 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import dev.jeziellago.compose.markdowntext.MarkdownText
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.sfa.Application
-import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.bg.BoxService
 import io.nekohasekai.sfa.bg.ServiceConnection
@@ -96,7 +91,6 @@ import io.nekohasekai.sfa.compose.base.GlobalEventBus
 import io.nekohasekai.sfa.compose.base.SelectableMessageDialog
 import io.nekohasekai.sfa.compose.base.UiEvent
 import io.nekohasekai.sfa.compose.component.ServiceStatusBar
-import io.nekohasekai.sfa.compose.component.UpdateAvailableDialog
 import io.nekohasekai.sfa.compose.component.UptimeText
 import io.nekohasekai.sfa.compose.navigation.NewProfileArgs
 import io.nekohasekai.sfa.compose.navigation.ProfileRoutes
@@ -119,8 +113,6 @@ import io.nekohasekai.sfa.constant.Status
 import io.nekohasekai.sfa.database.Settings
 import io.nekohasekai.sfa.ktx.hasPermission
 import io.nekohasekai.sfa.ktx.launchCustomTab
-import io.nekohasekai.sfa.update.UpdateState
-import io.nekohasekai.sfa.vendor.Vendor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -196,17 +188,6 @@ class MainActivity :
         enableEdgeToEdge()
 
         connection.reconnect()
-        UpdateState.loadFromCache()
-        if (Settings.checkUpdateEnabled) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                try {
-                    val updateInfo = Vendor.checkUpdateAsync()
-                    UpdateState.setUpdate(updateInfo)
-                } catch (_: Exception) {
-                    UpdateState.setUpdate(null)
-                }
-            }
-        }
 
         handleIntent(intent)
 
@@ -549,143 +530,6 @@ class MainActivity :
             )
         }
 
-        // Handle update check prompt dialog (shown only once on first launch)
-        var showUpdateCheckPrompt by remember { mutableStateOf(!Settings.updateCheckPrompted) }
-        if (showUpdateCheckPrompt) {
-            AlertDialog(
-                onDismissRequest = {
-                    Settings.updateCheckPrompted = true
-                    showUpdateCheckPrompt = false
-                },
-                title = { Text(stringResource(R.string.check_update)) },
-                text = {
-                    MarkdownText(
-                        markdown = stringResource(
-                            if (BuildConfig.FLAVOR == "play") {
-                                R.string.check_update_prompt_play
-                            } else {
-                                R.string.check_update_prompt_github
-                            },
-                        ),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        Settings.updateCheckPrompted = true
-                        Settings.checkUpdateEnabled = true
-                        showUpdateCheckPrompt = false
-                        scope.launch(Dispatchers.IO) {
-                            try {
-                                val result = Vendor.checkUpdateAsync()
-                                UpdateState.setUpdate(result)
-                            } catch (_: Exception) {
-                                UpdateState.setUpdate(null)
-                            }
-                        }
-                    }) {
-                        Text(stringResource(R.string.ok))
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = {
-                        Settings.updateCheckPrompted = true
-                        showUpdateCheckPrompt = false
-                    }) {
-                        Text(stringResource(R.string.no_thanks))
-                    }
-                },
-            )
-        }
-
-        // Handle update available dialog
-        val updateInfo by UpdateState.updateInfo
-        val shouldShowUpdateDialog = updateInfo != null &&
-            updateInfo!!.versionCode > Settings.lastShownUpdateVersion
-        var showUpdateDialog by remember { mutableStateOf(true) }
-
-        // Download dialog state
-        var showDownloadDialog by remember { mutableStateOf(false) }
-        var downloadJob by remember { mutableStateOf<Job?>(null) }
-        var downloadError by remember { mutableStateOf<String?>(null) }
-
-        if (showUpdateDialog && shouldShowUpdateDialog) {
-            UpdateAvailableDialog(
-                updateInfo = updateInfo!!,
-                onDismiss = {
-                    Settings.lastShownUpdateVersion = updateInfo!!.versionCode
-                    showUpdateDialog = false
-                },
-                onUpdate = {
-                    showDownloadDialog = true
-                    downloadError = null
-                    downloadJob = scope.launch {
-                        try {
-                            withContext(Dispatchers.IO) {
-                                Vendor.downloadAndInstall(
-                                    this@MainActivity,
-                                    updateInfo!!.downloadUrl,
-                                )
-                            }
-                            showDownloadDialog = false
-                        } catch (e: Exception) {
-                            downloadError = e.message
-                        }
-                    }
-                },
-            )
-        }
-
-        // Download progress dialog
-        if (showDownloadDialog) {
-            AlertDialog(
-                onDismissRequest = {},
-                title = { Text(stringResource(R.string.update)) },
-                text = {
-                    Column {
-                        if (downloadError != null) {
-                            Text(
-                                downloadError!!,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        } else {
-                            val progress by UpdateState.downloadProgress
-                            val progressValue = progress
-                            Column {
-                                if (progressValue != null) {
-                                    Text("${stringResource(R.string.downloading)} ${(progressValue * 100).toInt()}%")
-                                } else {
-                                    Text(stringResource(R.string.downloading))
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                if (progressValue != null) {
-                                    LinearProgressIndicator(
-                                        progress = { progressValue },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                } else {
-                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                                }
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            downloadJob?.cancel()
-                            downloadJob = null
-                            showDownloadDialog = false
-                            downloadError = null
-                            UpdateState.downloadProgress.value = null
-                        },
-                    ) {
-                        Text(stringResource(if (downloadError != null) R.string.ok else android.R.string.cancel))
-                    }
-                },
-            )
-        }
-
         // Initialize the dashboard view model and store reference
         val dashboardViewModel: DashboardViewModel = viewModel()
         if (!::dashboardViewModel.isInitialized) {
@@ -992,20 +836,11 @@ class MainActivity :
                         NavigationRail(
                             modifier = Modifier.fillMaxHeight(),
                         ) {
-                            val hasUpdate by UpdateState.hasUpdate
                             railScreens.forEach { screen ->
                                 val selected = currentRootRoute == screen.route
 
                                 NavigationRailItem(
-                                    icon = {
-                                        if (screen == Screen.Settings && hasUpdate) {
-                                            BadgedBox(badge = { Badge(containerColor = MaterialTheme.colorScheme.primary) }) {
-                                                Icon(screen.icon, contentDescription = null)
-                                            }
-                                        } else {
-                                            Icon(screen.icon, contentDescription = null)
-                                        }
-                                    },
+                                    icon = { Icon(screen.icon, contentDescription = null) },
                                     label = { Text(stringResource(screen.titleRes)) },
                                     selected = selected,
                                     onClick = {
@@ -1037,19 +872,10 @@ class MainActivity :
                     topBar = topBarContent,
                     bottomBar = {
                         if (!isSubScreen) {
-                            val hasUpdate by UpdateState.hasUpdate
                             NavigationBar {
                                 bottomNavigationScreens.forEach { screen ->
                                     NavigationBarItem(
-                                        icon = {
-                                            if (screen == Screen.Settings && hasUpdate) {
-                                                BadgedBox(badge = { Badge(containerColor = MaterialTheme.colorScheme.primary) }) {
-                                                    Icon(screen.icon, contentDescription = null)
-                                                }
-                                            } else {
-                                                Icon(screen.icon, contentDescription = null)
-                                            }
-                                        },
+                                        icon = { Icon(screen.icon, contentDescription = null) },
                                         label = { Text(stringResource(screen.titleRes)) },
                                         selected =
                                         currentDestination?.hierarchy?.any {

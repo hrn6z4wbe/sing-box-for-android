@@ -35,7 +35,6 @@ import io.nekohasekai.sfa.constant.Status
 import io.nekohasekai.sfa.database.ProfileManager
 import io.nekohasekai.sfa.database.Settings
 import io.nekohasekai.sfa.ktx.hasPermission
-import io.nekohasekai.sfa.vendor.Vendor
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -137,7 +136,7 @@ class BoxService(private val service: Service, private val platformInterface: Pl
                     content,
                     OverrideOptions().apply {
                         autoRedirect = Settings.autoRedirect
-                        if (Vendor.isPerAppProxyAvailable() && Settings.perAppProxyEnabled) {
+                        if (Settings.perAppProxyEnabled) {
                             val appList = Settings.getEffectivePerAppProxyList()
                             if (Settings.getEffectivePerAppProxyMode() == Settings.PER_APP_PROXY_INCLUDE) {
                                 includePackage =
@@ -219,7 +218,7 @@ class BoxService(private val service: Service, private val platformInterface: Pl
                 content,
                 OverrideOptions().apply {
                     autoRedirect = Settings.autoRedirect
-                    if (Vendor.isPerAppProxyAvailable() && Settings.perAppProxyEnabled) {
+                    if (Settings.perAppProxyEnabled) {
                         val appList = Settings.getEffectivePerAppProxyList()
                         if (Settings.getEffectivePerAppProxyMode() == Settings.PER_APP_PROXY_INCLUDE) {
                             includePackage = PlatformInterfaceWrapper.StringArray((appList + Application.application.packageName).iterator())

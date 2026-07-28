@@ -18,7 +18,6 @@ import io.nekohasekai.sfa.bg.UpdateProfileWork
 import io.nekohasekai.sfa.constant.Bugs
 import io.nekohasekai.sfa.database.Settings
 import io.nekohasekai.sfa.utils.AppLifecycleObserver
-import io.nekohasekai.sfa.vendor.Vendor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -57,16 +56,14 @@ class Application : Application() {
             UpdateProfileWork.reconfigureUpdater()
         }
 
-        if (Vendor.isPerAppProxyAvailable()) {
-            registerReceiver(
-                AppChangeReceiver(),
-                IntentFilter().apply {
-                    addAction(Intent.ACTION_PACKAGE_ADDED)
-                    addAction(Intent.ACTION_PACKAGE_REPLACED)
-                    addDataScheme("package")
-                },
-            )
-        }
+        registerReceiver(
+            AppChangeReceiver(),
+            IntentFilter().apply {
+                addAction(Intent.ACTION_PACKAGE_ADDED)
+                addAction(Intent.ACTION_PACKAGE_REPLACED)
+                addDataScheme("package")
+            },
+        )
     }
 
     private fun initialize(baseDir: File, workingDir: File?, tempDir: File) {

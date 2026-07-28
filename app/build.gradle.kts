@@ -197,7 +197,6 @@ dependencies {
     val lifecycleVersion24 = "2.11.0"
     val roomVersion24 = "2.8.4"
     val workVersion24 = "2.11.2"
-    val cameraVersion24 = "1.6.1"
     val browserVersion24 = "1.10.0"
     val coreVersion24 = "1.19.0"
     val materialVersion24 = "1.14.0"
@@ -205,7 +204,6 @@ dependencies {
     val lifecycleVersion21 = "2.9.4"
     val roomVersion21 = "2.7.2"
     val workVersion21 = "2.10.5"
-    val cameraVersion21 = "1.4.2"
     val browserVersion21 = "1.9.0"
     val coreVersion21 = "1.17.0"
     val materialVersion21 = "1.13.0"
@@ -215,7 +213,6 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.2.1")
     implementation("androidx.navigation:navigation-fragment-ktx:2.9.8")
     implementation("androidx.navigation:navigation-ui-ktx:2.9.8")
-    implementation("com.google.zxing:core:3.5.4")
     implementation("androidx.coordinatorlayout:coordinatorlayout:1.3.0")
     implementation("androidx.preference:preference-ktx:1.2.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
@@ -231,9 +228,6 @@ dependencies {
     "playImplementation"("androidx.lifecycle:lifecycle-process:$lifecycleVersion24")
     "playImplementation"("androidx.room:room-runtime:$roomVersion24")
     "playImplementation"("androidx.work:work-runtime-ktx:$workVersion24")
-    "playImplementation"("androidx.camera:camera-view:$cameraVersion24")
-    "playImplementation"("androidx.camera:camera-lifecycle:$cameraVersion24")
-    "playImplementation"("androidx.camera:camera-camera2:$cameraVersion24")
     "playImplementation"("androidx.browser:browser:$browserVersion24")
     "playImplementation"("androidx.core:core-ktx:$coreVersion24")
     "playImplementation"("com.google.android.material:material:$materialVersion24")
@@ -245,9 +239,6 @@ dependencies {
     "otherImplementation"("androidx.lifecycle:lifecycle-process:$lifecycleVersion24")
     "otherImplementation"("androidx.room:room-runtime:$roomVersion24")
     "otherImplementation"("androidx.work:work-runtime-ktx:$workVersion24")
-    "otherImplementation"("androidx.camera:camera-view:$cameraVersion24")
-    "otherImplementation"("androidx.camera:camera-lifecycle:$cameraVersion24")
-    "otherImplementation"("androidx.camera:camera-camera2:$cameraVersion24")
     "otherImplementation"("androidx.browser:browser:$browserVersion24")
     "otherImplementation"("androidx.core:core-ktx:$coreVersion24")
     "otherImplementation"("com.google.android.material:material:$materialVersion24")
@@ -259,9 +250,6 @@ dependencies {
     "otherLegacyImplementation"("androidx.lifecycle:lifecycle-process:$lifecycleVersion21")
     "otherLegacyImplementation"("androidx.room:room-runtime:$roomVersion21")
     "otherLegacyImplementation"("androidx.work:work-runtime-ktx:$workVersion21")
-    "otherLegacyImplementation"("androidx.camera:camera-view:$cameraVersion21")
-    "otherLegacyImplementation"("androidx.camera:camera-lifecycle:$cameraVersion21")
-    "otherLegacyImplementation"("androidx.camera:camera-camera2:$cameraVersion21")
     "otherLegacyImplementation"("androidx.browser:browser:$browserVersion21")
     "otherLegacyImplementation"("androidx.core:core-ktx:$coreVersion21")
     "otherLegacyImplementation"("com.google.android.material:material:$materialVersion21")
@@ -280,10 +268,6 @@ dependencies {
     "otherImplementation"("com.itsaky.androidide.treesitter:tree-sitter-json:$treeSitterVersion")
     "otherLegacyImplementation"("com.blacksquircle.ui:editorkit:2.2.0")
     "otherLegacyImplementation"("com.blacksquircle.ui:language-json:2.2.0")
-
-    // Play Store specific
-    "playImplementation"("com.google.android.play:app-update-ktx:2.1.0")
-    "playImplementation"("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1")
 
     // Shizuku (play and other flavors, API 24+ only)
     val shizukuVersion = "13.1.5"
@@ -354,7 +338,6 @@ dependencies {
 
     // Common Compose-related libraries
     implementation("sh.calvin.reorderable:reorderable:3.1.0")
-    implementation("com.github.jeziellago:compose-markdown:0.7.2")
     implementation("org.kodein.emoji:emoji-kt:2.5.0")
 
 }

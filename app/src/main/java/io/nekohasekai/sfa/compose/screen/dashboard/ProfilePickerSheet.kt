@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -52,7 +51,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -61,9 +59,7 @@ import androidx.compose.ui.unit.dp
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.ProfileContent
 import io.nekohasekai.sfa.R
-import io.nekohasekai.sfa.compose.component.qr.QRCodeDialog
 import io.nekohasekai.sfa.compose.util.ProfileIcons
-import io.nekohasekai.sfa.compose.util.QRCodeGenerator
 import io.nekohasekai.sfa.compose.util.RelativeTimeFormatter
 import io.nekohasekai.sfa.database.Profile
 import io.nekohasekai.sfa.database.TypedProfile
@@ -88,9 +84,6 @@ fun ProfilePickerSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-
-    var showQRCodeDialog by remember { mutableStateOf(false) }
-    var qrCodeProfile by remember { mutableStateOf<Profile?>(null) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -151,10 +144,6 @@ fun ProfilePickerSheet(
                                     }
                                 }
                             },
-                            onShareURL = {
-                                qrCodeProfile = profile
-                                showQRCodeDialog = true
-                            },
                             onDelete = { onProfileDelete(profile) },
                             modifier = Modifier.longPressDraggableHandle(),
                         )
@@ -164,25 +153,6 @@ fun ProfilePickerSheet(
         }
     }
 
-    if (showQRCodeDialog && qrCodeProfile != null) {
-        val profile = qrCodeProfile!!
-        val link = remember(profile) {
-            Libbox.generateRemoteProfileImportLink(
-                profile.name,
-                profile.typed.remoteURL,
-            )
-        }
-        val surfaceColor = MaterialTheme.colorScheme.surface.toArgb()
-        val qrBitmap = QRCodeGenerator.rememberPrimaryBitmap(link, backgroundColor = surfaceColor)
-
-        QRCodeDialog(
-            bitmap = qrBitmap,
-            onDismiss = {
-                showQRCodeDialog = false
-                qrCodeProfile = null
-            },
-        )
-    }
 }
 
 private suspend fun createProfileContent(profile: Profile): ByteArray {
@@ -213,7 +183,6 @@ private fun ProfilePickerRow(
     onSelect: () -> Unit,
     onEdit: () -> Unit,
     onShare: () -> Unit,
-    onShareURL: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -444,23 +413,6 @@ private fun ProfilePickerRow(
                                 },
                             )
 
-                            if (profile.typed.type == TypedProfile.Type.Remote) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.profile_share_url)) },
-                                    onClick = {
-                                        showMenu = false
-                                        onShareURL()
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Default.QrCode2,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.padding(start = 24.dp),
-                                        )
-                                    },
-                                )
-                            }
                         }
 
                         DropdownMenuItem(

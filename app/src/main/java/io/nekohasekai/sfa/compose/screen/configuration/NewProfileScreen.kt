@@ -74,7 +74,6 @@ import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
 fun NewProfileScreen(
     importName: String? = null,
     importUrl: String? = null,
-    qrsData: ByteArray? = null,
     onNavigateBack: () -> Unit,
     onProfileCreated: (profileId: Long) -> Unit,
     viewModel: NewProfileViewModel = viewModel(),
@@ -82,12 +81,8 @@ fun NewProfileScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    LaunchedEffect(importName, importUrl, qrsData) {
-        if (qrsData != null) {
-            viewModel.initializeFromQRSImport(importName, qrsData)
-        } else {
-            viewModel.initializeFromQRImport(importName, importUrl)
-        }
+    LaunchedEffect(importName, importUrl) {
+        viewModel.initializeFromImport(importName, importUrl)
     }
 
     // File picker launcher
