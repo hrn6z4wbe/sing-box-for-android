@@ -226,7 +226,7 @@ fun AppSettingsScreen(
                         Modifier
                             .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
                             .clickable {
-                                context.clipboardText = BuildConfig.VERSION_NAME
+                                clipboardText = BuildConfig.VERSION_NAME
                                 Toast.makeText(context, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
                             },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
