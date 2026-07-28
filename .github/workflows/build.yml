@@ -36,7 +36,7 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ github.run_id }}
+          key: ${{ runner.os }}-go-${{ hashFiles('core-version.properties') }}
           restore-keys: |
             ${{ runner.os }}-go-
 
@@ -50,7 +50,26 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
-          git clone https://github.com/SagerNet/sing-box.git sing-box-src
+          SING_BOX_COMMIT=$(sed -n 's/^singBoxCommit=//p' core-version.properties)
+          if ! printf '%s' "$SING_BOX_COMMIT" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "Invalid sing-box commit in core-version.properties" >&2
+            exit 1
+          fi
+
+          git init sing-box-src
+          git -C sing-box-src remote add origin https://github.com/SagerNet/sing-box.git
+          git -C sing-box-src fetch --depth 1 origin "$SING_BOX_COMMIT"
+          git -C sing-box-src checkout --detach FETCH_HEAD
+
+          ACTUAL_COMMIT=$(git -C sing-box-src rev-parse HEAD)
+          if [ "$ACTUAL_COMMIT" != "$SING_BOX_COMMIT" ]; then
+            echo "Expected sing-box $SING_BOX_COMMIT, checked out $ACTUAL_COMMIT" >&2
+            exit 1
+          fi
+          echo "Building sing-box core at $ACTUAL_COMMIT"
+          echo "### sing-box core" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`$ACTUAL_COMMIT\`" >> "$GITHUB_STEP_SUMMARY"
+
           cd sing-box-src
           make lib_install
           export PATH="$PATH:$(go env GOPATH)/bin"
