@@ -65,13 +65,22 @@ jobs:
             --name sing-box-android-apk \
             --dir release
 
+      - name: Check release token
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_TOKEN" ]; then
+            echo "RELEASE_TOKEN is required to create independent releases in this fork" >&2
+            exit 1
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: release/*.apk
           tag_name: ${{ env.RELEASE_TAG }}
           target_commitish: ${{ env.HEAD_SHA }}
-          name: SFA Build #${{ env.RUN_ID }}
+          name: "SFA Build #${{ env.RUN_ID }}"
           body: |
             Published from Build APK run #${{ env.RUN_ID }}.
             Source commit: `${{ env.HEAD_SHA }}`
@@ -80,11 +89,11 @@ jobs:
           make_latest: true
           overwrite_files: true
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Remove legacy rolling release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           if gh release view latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release delete latest \
@@ -94,7 +103,7 @@ jobs:
 
       - name: Keep the five newest build releases
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
             --jq 'map(select(.tag_name | startswith("build-"))) | sort_by(.created_at) | reverse | .[5:] | .[].tag_name' \
