@@ -64,30 +64,15 @@ jobs:
             --name sing-box-android-apk \
             --dir release
 
-      - name: Point latest tag to the built commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/latest" >/dev/null 2>&1; then
-            gh api \
-              --method PATCH \
-              "repos/$GITHUB_REPOSITORY/git/refs/tags/latest" \
-              -f sha="$HEAD_SHA" \
-              -F force=true >/dev/null
-          else
-            gh api \
-              --method POST \
-              "repos/$GITHUB_REPOSITORY/git/refs" \
-              -f ref="refs/tags/latest" \
-              -f sha="$HEAD_SHA" >/dev/null
-          fi
-
       - name: Create or update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: release/*.apk
           tag_name: latest
           name: Latest Auto Build
+          body: |
+            Published from Build APK run #${{ env.RUN_ID }}.
+            Source commit: `${{ env.HEAD_SHA }}`
           draft: false
           prerelease: false
           make_latest: true
