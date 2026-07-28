@@ -1,4 +1,4 @@
-name: Publish Latest Release
+name: Publish Independent Release
 
 on:
   workflow_dispatch:
@@ -53,6 +53,7 @@ jobs:
 
           echo "RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
           echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=build-$RUN_ID" >> "$GITHUB_ENV"
           echo "Publishing artifact from run $RUN_ID at $HEAD_SHA"
 
       - name: Download APK artifact
@@ -64,12 +65,13 @@ jobs:
             --name sing-box-android-apk \
             --dir release
 
-      - name: Create or update GitHub Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: release/*.apk
-          tag_name: latest
-          name: Latest Auto Build
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ env.HEAD_SHA }}
+          name: SFA Build #${{ env.RUN_ID }}
           body: |
             Published from Build APK run #${{ env.RUN_ID }}.
             Source commit: `${{ env.HEAD_SHA }}`
@@ -79,3 +81,28 @@ jobs:
           overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Remove legacy rolling release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete latest \
+              --repo "$GITHUB_REPOSITORY" \
+              --yes
+          fi
+
+      - name: Keep the five newest build releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq 'map(select(.tag_name | startswith("build-"))) | sort_by(.created_at) | reverse | .[5:] | .[].tag_name' \
+            | while IFS= read -r tag; do
+                if [ -n "$tag" ]; then
+                  echo "Deleting old release $tag"
+                  gh release delete "$tag" \
+                    --repo "$GITHUB_REPOSITORY" \
+                    --yes
+                fi
+              done
