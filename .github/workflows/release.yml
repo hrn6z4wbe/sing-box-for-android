@@ -1,0 +1,96 @@
+name: Publish Latest Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Successful Build APK run ID (leave empty to use the latest successful dev build)"
+        required: false
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Select successful build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_RUN_ID: ${{ inputs.run_id }}
+        run: |
+          if [ -n "$REQUESTED_RUN_ID" ]; then
+            RUN_ID="$REQUESTED_RUN_ID"
+          else
+            RUN_ID=$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow build.yml \
+              --branch dev \
+              --status success \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId')
+          fi
+
+          if ! printf '%s' "$RUN_ID" | grep -Eq '^[0-9]+$'; then
+            echo "No valid successful build run was selected" >&2
+            exit 1
+          fi
+
+          RUN_INFO=$(gh run view "$RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json conclusion,headSha,workflowName)
+          CONCLUSION=$(printf '%s' "$RUN_INFO" | jq -r '.conclusion')
+          WORKFLOW_NAME=$(printf '%s' "$RUN_INFO" | jq -r '.workflowName')
+          HEAD_SHA=$(printf '%s' "$RUN_INFO" | jq -r '.headSha')
+
+          if [ "$CONCLUSION" != "success" ] || [ "$WORKFLOW_NAME" != "Build APK" ]; then
+            echo "Run $RUN_ID is not a successful Build APK run" >&2
+            exit 1
+          fi
+
+          echo "RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+          echo "Publishing artifact from run $RUN_ID at $HEAD_SHA"
+
+      - name: Download APK artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "$RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name sing-box-android-apk \
+            --dir release
+
+      - name: Point latest tag to the built commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/latest" >/dev/null 2>&1; then
+            gh api \
+              --method PATCH \
+              "repos/$GITHUB_REPOSITORY/git/refs/tags/latest" \
+              -f sha="$HEAD_SHA" \
+              -F force=true >/dev/null
+          else
+            gh api \
+              --method POST \
+              "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref="refs/tags/latest" \
+              -f sha="$HEAD_SHA" >/dev/null
+          fi
+
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.apk
+          tag_name: latest
+          name: Latest Auto Build
+          draft: false
+          prerelease: false
+          make_latest: true
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
