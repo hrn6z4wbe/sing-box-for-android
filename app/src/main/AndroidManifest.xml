@@ -97,7 +97,7 @@
             android:name=".bg.TileService"
             android:directBootAware="true"
             android:exported="true"
-            android:icon="@drawable/ic_menu"
+            android:icon="@drawable/ic_status_route"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             tools:targetApi="n">
             <intent-filter>
